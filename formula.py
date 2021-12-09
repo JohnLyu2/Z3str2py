@@ -284,6 +284,7 @@ class Formula:
             if not eqt.isSolvable(): return False
         return True
 
+    # the flow of deciding UNSAT and FALSE need more tests
     def solve(self):
         if self.isSolvable():
             print("The format is solvable in the form: ")
