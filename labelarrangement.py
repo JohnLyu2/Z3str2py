@@ -123,22 +123,50 @@ class LabelArrangement:
                 existSet.add(element)
         return True
 
+    # check whether there exists a variable start label with name varName between pos start and end (exclusive)
+    def checkExistVarStartInBetween(self, varName, start, end):
+        for i in range(start + 1, end):
+            lSet = self.arrangement[i]
+            for label in lSet:
+                if (label.isVar) and (label.name == varName) and (label.isStart):
+                    return True
+        return False
+
+    # Works for arrangement complying with Neighboring, Consistency, and Uniqueness
+    def checkOverlapping(self):
+        setSize = self.getSetSize();
+        for i in range(setSize - 2):
+            startSet = self.arrangement[i]
+            for label in startSet:
+                if (label.isVar):
+                    endPos = self.findEnd(label.name, True, label.occurance, i)
+                    if self.checkExistVarStartInBetween(label.name, i, endPos): return True
+        return False
+
     def arrgmtMerge(self, arr2):
         productList = self.arrgmtProduct(arr2)
         result = []
+        containOverlap = False
         for arr in productList:
-            # uniqueness and non-overlapping not implemented
+            isOverlap = arr.checkOverlapping();
             if arr.checkNeighboring() and arr.checkConsistency() and arr.checkUniqueness():
-                result.append(arr)
-        return result
+                if isOverlap:
+                #    print("Overlap!!!: ")
+                #    print(arr.printStr())
+                    containOverlap = True
+                else:
+                    result.append(arr)
+        return result, containOverlap
 
     # merge self with each arrangement in arrList and returns a list of all resulting arrangements
     def arrMergeList(self, arrList):
         result = []
+        containOverlap = False
         for arr in arrList:
-            oneResult = self.arrgmtMerge(arr)
+            oneResult, isOverlap = self.arrgmtMerge(arr)
+            if (isOverlap): containOverlap = True
             result += oneResult
-        return result
+        return result, containOverlap
 
     def projectArrgmtToVar(self, var):
         resultList = []

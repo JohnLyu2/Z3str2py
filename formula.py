@@ -1,10 +1,14 @@
 from equation import Equation
 
+TRUE = "True"
+UNKNOWN = "Unknown"
+FALSE = "False"
+
 class Formula:
 
     def __init__(self):
         self.equations = []
-        self.ogArr = [] # orignal arrangments for all words
+        self.ogArr = [] # original arrangements for all words
         self.mergeResult = [] # results from Merge on all equations; a list of arrangements for each equation
         self.mergeIndexBank = None # change to none later
         self.varIndexBank = None # change to none later
@@ -18,6 +22,7 @@ class Formula:
         self.rwArrgmt = None
         self.rwWord = None
         self.splittedEq = None
+        self.overlap = False
 
     def inputEqArray(self, eqList):
         self.equations = eqList
@@ -30,12 +35,23 @@ class Formula:
             arrTuple = equation.generateOgArr(self.varCounter, self.charCounter)
             self.ogArr.append(arrTuple)
 
+    # returns: (1) whether has 1 or more arr for every variable; (2) overlap occurs in the process; (3) must be UNSAT
     def intialMerge(self):
+
+        isInvalid = False  # no solution can exist because for a certain variable
+        noNonOverSol = False  # no solution without overlap
+
+        hasOverlap = False
+
         for eqt in self.equations:
-            eqMergeList = eqt.merge()
-            if (len(eqMergeList) == 0): return False
+            eqMergeList, containOverlap = eqt.merge()
+
+            if (len(eqMergeList) == 0):
+                noNonOverSolSolution = True
+                if not containOverlap: isInvalid = True
+            if containOverlap: hasOverlap = True
             self.mergeResult.append(eqMergeList)
-        return True
+        return (not noNonOverSol), hasOverlap, isInvalid
 
     def createAllArrIndexTuples(self):
         self.mergeIndexBank = []
@@ -92,6 +108,11 @@ class Formula:
             arrList = self.mergeResult[i]
             index = indexTuple[i]
             self.mergePick.append(arrList[index])
+        #printList = []
+        #for arrgmt in self.mergePick:
+        #    printList.append(arrgmt.printStr())
+        #print("Merge Pick List: ")
+        #print(printList)
 
     def selectFromVar(self, indexTuple):
         self.varMapPick = dict()
@@ -110,30 +131,45 @@ class Formula:
         return splitFormula.solve()
 
     def solveIterativeSelectFromVar(self):
-        # think about empty bank case later together
+        containOverlap = False
         for indexTuple in self.varIndexBank:
             self.selectFromVar(indexTuple)
-            if self.solveFromVarPick(): return True
-        else:
-            return False
+            solveResult = self.solveFromVarPick()
+            if solveResult == TRUE: return TRUE
+            elif solveResult == UNKNOWN:
+                containOverlap = TRUE
+        if containOverlap: return UNKNOWN
+        return FALSE
 
     def solveFromMergePick(self):
         self.varPjFromMerge()
-        if not self.genVarMapBank(): return False
-        self.createAllVarIndexTuples()
-        for indexTuple in self.varIndexBank:
-            self.selectFromVar(indexTuple)
-            # print("now solve from Var: " + str(indexTuple))
-            if self.solveFromVarPick(): return True
-        else: return False
+        hasOverlap = False
+        continuableBank, overlap, isInvalid = self.genVarMapBank()
+        if isInvalid: return FALSE
+        if overlap: hasOverlap = True
+        if continuableBank:
+
+            self.createAllVarIndexTuples()
+            for indexTuple in self.varIndexBank:
+                self.selectFromVar(indexTuple)
+                print("now solve from Var: " + str(indexTuple))
+                solveResult = self.solveFromVarPick()
+                if solveResult == TRUE: return TRUE
+                elif solveResult == UNKNOWN: hasOverlap = True
+
+        if hasOverlap: return UNKNOWN
+        return FALSE
 
     def solveIterativeSelectFromMerge(self):
-        # think about empty bank case later together
+        hasOverlap = False
         for indexTuple in self.mergeIndexBank:
             self.selectFromMerge(indexTuple)
-            # print("now solve from Merge: " + str(indexTuple))
-            if self.solveFromMergePick(): return True
-        else: return False
+            print("now solve from Merge: " + str(indexTuple))
+            solveResult = self.solveFromMergePick()
+            if solveResult == TRUE: return TRUE
+            elif solveResult == UNKNOWN: hasOverlap = True
+        if hasOverlap: return UNKNOWN
+        return FALSE
 
     def varPjFromMerge(self):
         self.varProjFromMerge = dict()
@@ -145,20 +181,29 @@ class Formula:
 
     # returns the merge result of var's projections
     def perVarArr(self, var):
+        overlap = False
         pjList = self.varProjFromMerge[var]
         result = [pjList[0]]
         for i in range(1,len(pjList)):
-            result = pjList[i].arrMergeList(result)
-        return result
+            result, hasOverlap = pjList[i].arrMergeList(result)
+            if hasOverlap: overlap = True
+        return result, overlap
 
+    # returns: (1) whether has 1 or more arr for every variable; (2) overlap occurs in the process; (3) must be UNSAT
     def genVarMapBank(self):
+        hasOverlap = False
+        isInvalid = False # no solution can exist because for a certain variable
+        noNonOverSol = False # no solution without overlap
         self.varMapBank = dict()
         for variable in self.varCounter:
-            varArrList = self.perVarArr(variable)
-            if len(varArrList) == 0: return False
+            varArrList, containOverlap = self.perVarArr(variable)
+            if containOverlap: hasOverlap = True
+            if len(varArrList) == 0:
+                noNonOverSol = True
+                if not containOverlap: isInvalid = True
             self.varMapBank[variable] = varArrList
         self.varList = list(self.varMapBank)
-        return True
+        return (not noNonOverSol), hasOverlap, isInvalid
 
 
     def rewrite(self):
@@ -243,12 +288,18 @@ class Formula:
         if self.isSolvable():
             print("The format is solvable in the form: ")
             print(self.printStr())
-            return True
+            return TRUE
         self.generateOgArr()
-        if not self.intialMerge():
-            return False
+        continuable, hasOverlap, isInvalid = self.intialMerge()
+        if isInvalid: return FALSE
+        if not continuable: return UNKNOWN
+        if hasOverlap: self.overlap = True
         self.createAllArrIndexTuples()
-        return self.solveIterativeSelectFromMerge()
+        solveResult = self.solveIterativeSelectFromMerge()
+        if solveResult == TRUE: return TRUE
+        if solveResult == UNKNOWN: return UNKNOWN
+        if self.overlap: return UNKNOWN
+        return FALSE
 
     def printStr(self):
         resultStr = "{\n"
