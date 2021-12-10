@@ -55,6 +55,8 @@ class Word:
         arrgmt.append(set_last)
         return arrgmt
 
+
+
     def rewriteWD(self, ogArr, varArrMap):
         size = self.getSize()
         emptySet = set()
@@ -65,18 +67,18 @@ class Word:
             rightLabArr = ogArr.trimArrgmt(i + 1, i + 1)
             eleArr = leftLabArr.appendArrgmt(rightLabArr)
             insertEle = self.content[i]
-            if not type(self.content[i]) is str:
-                varName = self.content[i].getName()
+            if not type(insertEle) is str:
+                varName = insertEle.getName()
                 varArr = varArrMap[varName]
                 eleArr = leftLabArr.mergeConcat(varArr)
                 eleArr = eleArr.mergeConcat(rightLabArr)
                 varArrSize = varArr.getSetSize()
                 assert varArrSize > 1
                 if varArrSize > 2:
-                    insertEle
                     for n in range(1, varArrSize):
                         newVarName = varName + "_" + str(n)
                         newVar = Variable(newVarName)
+                        insertEle.addChild(newVar)
                         wordList.append(newVar)
                 else:
                     wordList.append(insertEle) # for non-split variable
@@ -85,7 +87,6 @@ class Word:
             arrResult = arrResult.mergeConcat(eleArr)
             wordResult = Word(wordList)
         return arrResult, wordResult
-
 
     def printStr(self):
         resultStr = ""

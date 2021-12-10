@@ -1,3 +1,4 @@
+from variable import Variable
 from equation import Equation
 
 TRUE = "True"
@@ -19,6 +20,7 @@ class Formula:
         self.charCounter = dict()
         self.varMapBank = None
         self.varMapPick = None
+        self.varSplitDict = None
         self.rwArrgmt = None
         self.rwWord = None
         self.splittedEq = None
@@ -37,12 +39,9 @@ class Formula:
 
     # returns: (1) whether has 1 or more arr for every variable; (2) overlap occurs in the process; (3) must be UNSAT
     def intialMerge(self):
-
         isInvalid = False  # no solution can exist because for a certain variable
         noNonOverSol = False  # no solution without overlap
-
         hasOverlap = False
-
         for eqt in self.equations:
             eqMergeList, containOverlap = eqt.merge()
 
@@ -114,6 +113,7 @@ class Formula:
         #print("Merge Pick List: ")
         #print(printList)
 
+    # may rename some variable to variableName to eliminate ambiguity
     def selectFromVar(self, indexTuple):
         self.varMapPick = dict()
         for i in range(len(indexTuple)):
@@ -121,7 +121,21 @@ class Formula:
             index = indexTuple[i]
             self.varMapPick[variable] = self.varMapBank[variable][index]
 
+    def varSplit(self):
+        self.varSplitDict = dict()
+        for varName in self.varList:
+            varArr = self.varMapPick[varName]
+            varArrSize = varArr.getSetSize()
+            if varArrSize > 2:
+                spVarList = []
+                for n in range(1, varArrSize):
+                    newVarName = varName + "_" + str(n)
+                    newVar = Variable(newVarName)
+                    insertEle.addChild(newVar)
+                    wordList.append(newVar)
+
     def solveFromVarPick(self):
+        self.varSplit()
         self.rewrite()
         self.splitEq()
         splitFormula = Formula()
@@ -271,6 +285,7 @@ class Formula:
             arrStartMark = arrEndMark
             lhsStartMark = lhsEndMark
             rhsStartMark = rhsEndMark
+        assert (lhsEndMark == (lhsArrSize - 1))
         assert(rhsEndMark == (rhsArrSize - 1))
 
     def splitEq(self):
@@ -279,9 +294,14 @@ class Formula:
             # print("split eq: " + str(i))
             self.splitEqPos(i)
 
+    def assignModel(self):
+        for eqt in self.equations:
+            eqt.assignModel()
+
     def isSolvable(self):
         for eqt in self.equations:
             if not eqt.isSolvable(): return False
+        self.assignModel()
         return True
 
     # the flow of deciding UNSAT and FALSE need more tests

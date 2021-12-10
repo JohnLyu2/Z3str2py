@@ -21,6 +21,21 @@ class Equation:
             return True
         return False
 
+    def assignModel(self):
+        assert self.isSolvable()
+        # it would not happen that char = char, and the characters are not the same after merge
+        lhsEle = self.lhs.content[0]
+        rhsEle = self.rhs.content[0]
+        if (type(lhsEle) is str) and (not (type(rhsEle) is str)):
+            rhsEle.assignAChar(lhsEle)
+        elif (type(rhsEle) is str) and (not (type(lhsEle) is str)):
+            lhsEle.assignAChar(rhsEle)
+        elif (not (type(rhsEle) is str)) and (not (type(lhsEle) is str)):
+            assert lhsEle.lenConstraint == rhsEle.lenConstraint
+            # for now, we use the same character for stuffing; thus, it is ok just let the variables assign independently
+            lhsEle.assignLenStr()
+            rhsEle.assignLenStr()
+
     def printStr(self):
         resultStr = self.lhs.printStr()
         midStr = " = "

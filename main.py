@@ -4,7 +4,9 @@ from label import Label
 from equation import Equation
 from labelarrangement import LabelArrangement
 from formula import Formula
+from wesolver import WESolver
 
+# fix instruction regarding variable later
 def main():
 
     # format for adding new word as follows: wordName = Word([])
@@ -14,15 +16,17 @@ def main():
     word1.append("a")
     # a string variable is created as: Variable(variableName)
     # format for adding a string variable to a word: wordName.append(stringVariable)
-    word1.append(Variable("X"))
+    X = Variable("X")
+    word1.append(X)
     word1.append("b")
 
     word2 = Word([])
-    word2.append(Variable("Y"))
+    Y = Variable("Y")
+    word2.append(Y)
     word2.append("b")
 
     word3 = Word([])
-    word3.append(Variable("Y"))
+    word3.append(Y)
     word3.append(Variable("K"))
 
     word4 = Word([])
@@ -33,14 +37,15 @@ def main():
     e2 = Equation(word3, word4)
 
     # format for creating a formula: formulaName = Formula()
-    fm = Formula()
+    weSolver = WESolver()
     # format for adding an equation: formula.appendEq(equation)
-    fm.appendEq(e1)
-    fm.appendEq(e2)
+    weSolver.appendEq(e1)
+    weSolver.appendEq(e2)
 
     # formula.solve() returns True if it is solvable; returns False if not
     # Currently formula.solve() automatically print the final solvable split equations if the formula is solvable
-    print(fm.solve())
+    weSolver.solve()
+    print(weSolver.printStr())
 
 if __name__ == '__main__':
     main()
