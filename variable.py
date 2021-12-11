@@ -5,6 +5,7 @@ class Variable:
         self.content = None
         self.children = []
         self.lenConstraint = 1 # default to be 1
+        self.assigned = False
 
     def getName(self):
         return self.name
@@ -15,8 +16,9 @@ class Variable:
     def addChild(self, child):
         self.children.append(child)
 
-    def assignAChar(self, character):
-        self.content = character
+    def assignStr(self, str):
+        self.content = str
+        self.assigned = True
 
     # assign this variable with a string of length (self.lenConstraint)
     def assignLenStr(self):
@@ -25,6 +27,7 @@ class Variable:
         for i in range(self.lenConstraint):
             str += character
         self.content = str
+        self.assigned = True
 
     def genModel(self):
         if len(self.children) == 0: return self.content

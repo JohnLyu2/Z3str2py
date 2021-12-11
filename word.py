@@ -28,13 +28,13 @@ class Word:
         if not type(element) is str:
             isVar = True
             counter = varCounter
-            name = element.getName()
+            name = element.name
         if isStart:
-            if name not in counter:
-                counter[name] = 1
+            if element not in counter:
+                counter[element] = 1
             else:
-                counter[name] += 1
-        occ = counter[name]
+                counter[element] += 1
+        occ = counter[element]
         label = Label(isVar, name, isStart, occ)
         return label
 
@@ -55,9 +55,7 @@ class Word:
         arrgmt.append(set_last)
         return arrgmt
 
-
-
-    def rewriteWD(self, ogArr, varArrMap):
+    def rewriteWD(self, ogArr, varArrMap, varSplitMap):
         size = self.getSize()
         emptySet = set()
         arrResult = LabelArrangement([emptySet])
@@ -68,24 +66,14 @@ class Word:
             eleArr = leftLabArr.appendArrgmt(rightLabArr)
             insertEle = self.content[i]
             if not type(insertEle) is str:
-                varName = insertEle.getName()
-                varArr = varArrMap[varName]
+                varArr = varArrMap[insertEle]
                 eleArr = leftLabArr.mergeConcat(varArr)
                 eleArr = eleArr.mergeConcat(rightLabArr)
-                varArrSize = varArr.getSetSize()
-                assert varArrSize > 1
-                if varArrSize > 2:
-                    for n in range(1, varArrSize):
-                        newVarName = varName + "_" + str(n)
-                        newVar = Variable(newVarName)
-                        insertEle.addChild(newVar)
-                        wordList.append(newVar)
-                else:
-                    wordList.append(insertEle) # for non-split variable
+                wordList += varSplitMap[insertEle]
             else:
                 wordList.append(insertEle) # for char
             arrResult = arrResult.mergeConcat(eleArr)
-            wordResult = Word(wordList)
+        wordResult = Word(wordList)
         return arrResult, wordResult
 
     def printStr(self):

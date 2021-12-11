@@ -172,8 +172,8 @@ class LabelArrangement:
         resultList = []
         for i in range(len(self.arrangement)):
             for element in self.arrangement[i]:
-                if element.isVar and (element.name == var) and (element.isStart):
-                    endPos = self.findEnd(var, True, element.occurance, i+1)
+                if element.isVar and (element.name == var.name) and (element.isStart):
+                    endPos = self.findEnd(var.name, True, element.occurance, i+1)
                     resultList.append(self.trimArrgmt(i, endPos))
         return resultList
 

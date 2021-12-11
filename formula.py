@@ -15,7 +15,7 @@ class Formula:
         self.varIndexBank = None # change to none later
         self.mergePick = None # current pick of arrangement for each equation from self.mergeResult
         self.varProjFromMerge = None # every variable: variable projections from self.mergePick
-        self.varList = None # helper for createAllVarIndexTuples()
+        self.varList = None # helper for createAllVarIndexTuples(); think about whether need to clean it later
         self.varCounter = dict()
         self.charCounter = dict()
         self.varMapBank = None
@@ -123,16 +123,19 @@ class Formula:
 
     def varSplit(self):
         self.varSplitDict = dict()
-        for varName in self.varList:
-            varArr = self.varMapPick[varName]
+        for var in self.varList:
+            varArr = self.varMapPick[var]
             varArrSize = varArr.getSetSize()
             if varArrSize > 2:
                 spVarList = []
                 for n in range(1, varArrSize):
-                    newVarName = varName + "_" + str(n)
+                    newVarName = var.name + "_" + str(n)
                     newVar = Variable(newVarName)
-                    insertEle.addChild(newVar)
-                    wordList.append(newVar)
+                    var.addChild(newVar)
+                    spVarList.append(newVar)
+                self.varSplitDict[var] = spVarList
+            else:
+                self.varSplitDict[var] = [var]
 
     def solveFromVarPick(self):
         self.varSplit()
@@ -166,7 +169,7 @@ class Formula:
             self.createAllVarIndexTuples()
             for indexTuple in self.varIndexBank:
                 self.selectFromVar(indexTuple)
-                print("now solve from Var: " + str(indexTuple))
+                # print("now solve from Var: " + str(indexTuple))
                 solveResult = self.solveFromVarPick()
                 if solveResult == TRUE: return TRUE
                 elif solveResult == UNKNOWN: hasOverlap = True
@@ -178,7 +181,7 @@ class Formula:
         hasOverlap = False
         for indexTuple in self.mergeIndexBank:
             self.selectFromMerge(indexTuple)
-            print("now solve from Merge: " + str(indexTuple))
+            # print("now solve from Merge: " + str(indexTuple))
             solveResult = self.solveFromMergePick()
             if solveResult == TRUE: return TRUE
             elif solveResult == UNKNOWN: hasOverlap = True
@@ -224,10 +227,10 @@ class Formula:
         self.rwArrgmt = []
         self.rwWord = []
         for eqt in self.equations:
-            lhsRwTuple = eqt.lhs.rewriteWD(eqt.lhsArr, self.varMapPick)
+            lhsRwTuple = eqt.lhs.rewriteWD(eqt.lhsArr, self.varMapPick, self.varSplitDict)
             lhsRwArr = lhsRwTuple[0]
             lhsRwWord = lhsRwTuple[1]
-            rhsRwTuple = eqt.rhs.rewriteWD(eqt.rhsArr, self.varMapPick)
+            rhsRwTuple = eqt.rhs.rewriteWD(eqt.rhsArr, self.varMapPick, self.varSplitDict)
             rhsRwArr = rhsRwTuple[0]
             rhsRwWord = rhsRwTuple[1]
             self.rwArrgmt.append((lhsRwArr, rhsRwArr))
@@ -294,9 +297,20 @@ class Formula:
             # print("split eq: " + str(i))
             self.splitEqPos(i)
 
+    # a recursive helper function for assignModel(self)
+    def assignModelToFormula(self, eqList):
+        unSolvedList = []
+        eqSolved = 0
+        for eqt in eqList:
+            if eqt.assignDefModel(): eqSolved += 1
+            else: unSolvedList.append(eqt)
+        if len(unSolvedList) != 0:
+            if eqSolved == 0:
+                eqList[0].lhs.content[0].assignLenStr()
+            self.assignModelToFormula(unSolvedList)
+
     def assignModel(self):
-        for eqt in self.equations:
-            eqt.assignModel()
+        self.assignModelToFormula(self.equations)
 
     def isSolvable(self):
         for eqt in self.equations:
