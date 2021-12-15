@@ -4,8 +4,8 @@ from labelarrangement import LabelArrangement
 
 class Word:
 
-    def __init__(self, list):
-        self.content = list
+    def __init__(self, wList):
+        self.content = wList
 
     def getSize(self):
         return len(self.content)
@@ -13,6 +13,16 @@ class Word:
     def append(self, element):
         # add condition checker
         self.content.append(element)
+
+    def lenList(self):
+        resultList = []
+        for element in self.content:
+            length = 1
+            if not type(element) is str:
+                length = element.len()
+            resultList.append(length)
+        return resultList
+
 
     # return a subword from self, from start to end (not including end)
     def subWord(self, start, end):

@@ -1,3 +1,5 @@
+from lengthconstraint import LengthConstraint
+
 class Equation:
 
     def __init__(self, LHS, RHS):
@@ -12,6 +14,12 @@ class Equation:
         self.rhsArr = self.rhs.getArrgmtFromWord(varCounter, charCounter)
         # print("RHS: " + self.rhsArr.printStr())
         return (self.lhsArr, self.rhsArr)
+
+    def impliedLenConstraint(self):
+        lhsList = self.lhs.lenList()
+        rhsList = self.rhs.lenList()
+        lc = LengthConstraint("==", lhsList, rhsList)
+        return lc
 
     def merge(self):
         return self.lhsArr.arrgmtMerge(self.rhsArr)

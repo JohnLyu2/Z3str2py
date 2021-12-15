@@ -1,14 +1,17 @@
 from variable import Variable
 from equation import Equation
+from lensolver import LenSolver
+from lengthconstraint import LengthConstraint
 
-TRUE = "True"
+SAT = "SAT"
 UNKNOWN = "Unknown"
-FALSE = "False"
+UNSAT = "UNSAT"
 
 class Formula:
 
     def __init__(self):
-        self.equations = []
+        self.equations = None
+        self.lenConstraints = None
         self.ogArr = [] # original arrangements for all words
         self.mergeResult = [] # results from Merge on all equations; a list of arrangements for each equation
         self.mergeIndexBank = None # change to none later
@@ -20,6 +23,7 @@ class Formula:
         self.charCounter = dict()
         self.varMapBank = None
         self.varMapPick = None
+        self.varSplitLenList = None
         self.varSplitDict = None
         self.rwArrgmt = None
         self.rwWord = None
@@ -29,13 +33,22 @@ class Formula:
     def inputEqArray(self, eqList):
         self.equations = eqList
 
-    def appendEq(self, equation):
-        self.equations.append(equation)
+    def inputLenArray(self, lenList):
+        self.lenConstraints = lenList
 
     def generateOgArr(self):
         for equation in self.equations:
             arrTuple = equation.generateOgArr(self.varCounter, self.charCounter)
             self.ogArr.append(arrTuple)
+
+    def implyLenFromEqs(self):
+        for equation in self.equations:
+            implyLC = equation.impliedLenConstraint()
+            self.lenConstraints.append(implyLC)
+
+    def solveLenConstraint(self):
+        lenSolver = LenSolver(self.lenConstraints)
+        return lenSolver.solve()
 
     # returns: (1) whether has 1 or more arr for every variable; (2) overlap occurs in the process; (3) must be UNSAT
     def intialMerge(self):
@@ -44,9 +57,8 @@ class Formula:
         hasOverlap = False
         for eqt in self.equations:
             eqMergeList, containOverlap = eqt.merge()
-
             if (len(eqMergeList) == 0):
-                noNonOverSolSolution = True
+                noNonOverSol = True
                 if not containOverlap: isInvalid = True
             if containOverlap: hasOverlap = True
             self.mergeResult.append(eqMergeList)
@@ -123,17 +135,25 @@ class Formula:
 
     def varSplit(self):
         self.varSplitDict = dict()
+        self.varSplitLenList = []
         for var in self.varList:
             varArr = self.varMapPick[var]
             varArrSize = varArr.getSetSize()
             if varArrSize > 2:
                 spVarList = []
+                spVarLenList = []
                 for n in range(1, varArrSize):
                     newVarName = var.name + "_" + str(n)
                     newVar = Variable(newVarName)
+                    newVarLC = LengthConstraint(">", [newVar.len()], [0])
+                    self.varSplitLenList.append(newVarLC)
                     var.addChild(newVar)
+                    print("add " + newVar.name + " to " + var.name)
                     spVarList.append(newVar)
+                    spVarLenList.append(newVar.len())
                 self.varSplitDict[var] = spVarList
+                spLC = LengthConstraint("==", spVarLenList, [var.len()])
+                self.varSplitLenList.append(spLC)
             else:
                 self.varSplitDict[var] = [var]
 
@@ -143,50 +163,58 @@ class Formula:
         self.splitEq()
         splitFormula = Formula()
         splitFormula.inputEqArray(self.splittedEq)
-        # print("Now Split New Formula to: ")
-        # print(splitFormula.printStr())
+        inputLCList = self.lenConstraints + self.varSplitLenList
+        splitFormula.inputLenArray(inputLCList)
+        print("Now Split New Formula to: ")
+        print(splitFormula.printStr())
         return splitFormula.solve()
 
-    def solveIterativeSelectFromVar(self):
-        containOverlap = False
-        for indexTuple in self.varIndexBank:
-            self.selectFromVar(indexTuple)
-            solveResult = self.solveFromVarPick()
-            if solveResult == TRUE: return TRUE
-            elif solveResult == UNKNOWN:
-                containOverlap = TRUE
-        if containOverlap: return UNKNOWN
-        return FALSE
+    def clearVarChildren(self):
+        for var in self.varCounter:
+            print("clear for " + var.name)
+            var.children = []
+
+    # def solveIterativeSelectFromVar(self):
+        # containOverlap = False
+        # for indexTuple in self.varIndexBank:
+            # self.clearVarChildren()
+            # self.selectFromVar(indexTuple)
+            # solveResult = self.solveFromVarPick()
+            # if solveResult == SAT: return SAT
+            # elif solveResult == UNKNOWN:
+                # containOverlap = True
+        # if containOverlap: return UNKNOWN
+        # return UNSAT
 
     def solveFromMergePick(self):
         self.varPjFromMerge()
         hasOverlap = False
         continuableBank, overlap, isInvalid = self.genVarMapBank()
-        if isInvalid: return FALSE
+        if isInvalid: return UNSAT
         if overlap: hasOverlap = True
         if continuableBank:
-
             self.createAllVarIndexTuples()
             for indexTuple in self.varIndexBank:
+                self.clearVarChildren()
                 self.selectFromVar(indexTuple)
-                # print("now solve from Var: " + str(indexTuple))
+                print("now solve from Var: " + str(indexTuple))
                 solveResult = self.solveFromVarPick()
-                if solveResult == TRUE: return TRUE
+                if solveResult == SAT: return SAT
                 elif solveResult == UNKNOWN: hasOverlap = True
 
         if hasOverlap: return UNKNOWN
-        return FALSE
+        return UNSAT
 
     def solveIterativeSelectFromMerge(self):
         hasOverlap = False
         for indexTuple in self.mergeIndexBank:
             self.selectFromMerge(indexTuple)
-            # print("now solve from Merge: " + str(indexTuple))
+            print("now solve from Merge: " + str(indexTuple))
             solveResult = self.solveFromMergePick()
-            if solveResult == TRUE: return TRUE
+            if solveResult == SAT: return SAT
             elif solveResult == UNKNOWN: hasOverlap = True
         if hasOverlap: return UNKNOWN
-        return FALSE
+        return UNSAT
 
     def varPjFromMerge(self):
         self.varProjFromMerge = dict()
@@ -221,7 +249,6 @@ class Formula:
             self.varMapBank[variable] = varArrList
         self.varList = list(self.varMapBank)
         return (not noNonOverSol), hasOverlap, isInvalid
-
 
     def rewrite(self):
         self.rwArrgmt = []
@@ -310,6 +337,12 @@ class Formula:
             self.assignModelToFormula(unSolvedList)
 
     def assignModel(self):
+        lcSolver = LenSolver(self.lenConstraints)
+        lcSolver.solve()
+        mdl = lcSolver.model
+        print(mdl)
+        for var in self.varCounter:
+            var.updateLengthFromModel(mdl)
         self.assignModelToFormula(self.equations)
 
     def isSolvable(self):
@@ -318,23 +351,30 @@ class Formula:
         self.assignModel()
         return True
 
-    # the flow of deciding UNSAT and FALSE need more tests
+    # the flow of deciding UNKNOWN and UNSAT need more tests
     def solve(self):
+        self.implyLenFromEqs()
+        self.generateOgArr()
+        if not self.solveLenConstraint():
+            print(self.printStr())
+            print("length constraints are UNSAT")
+            for lc in self.lenConstraints:
+                print(lc.printStr())
+            return UNSAT
         if self.isSolvable():
             print("The format is solvable in the form: ")
             print(self.printStr())
-            return TRUE
-        self.generateOgArr()
+            return SAT
         continuable, hasOverlap, isInvalid = self.intialMerge()
-        if isInvalid: return FALSE
+        if isInvalid: return UNSAT
         if not continuable: return UNKNOWN
         if hasOverlap: self.overlap = True
         self.createAllArrIndexTuples()
         solveResult = self.solveIterativeSelectFromMerge()
-        if solveResult == TRUE: return TRUE
+        if solveResult == SAT: return SAT
         if solveResult == UNKNOWN: return UNKNOWN
         if self.overlap: return UNKNOWN
-        return FALSE
+        return UNSAT
 
     def printStr(self):
         resultStr = "{\n"
